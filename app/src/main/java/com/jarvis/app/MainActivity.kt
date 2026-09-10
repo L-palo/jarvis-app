@@ -84,11 +84,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun showApiKeyDialog() {
         val input = EditText(this)
-        input.hint = "sk-ant-..."
+        input.hint = "your API key"
         input.setText(getApiKey())
         AlertDialog.Builder(this)
-            .setTitle("Anthropic API Key")
-            .setMessage("Get one free at console.anthropic.com")
+            .setTitle("AI API Key")
+            .setMessage("Paste your Gemini API key from aistudio.google.com")
             .setView(input)
             .setPositiveButton("Save") { _, _ ->
                 prefs.edit().putString("api_key", input.text.toString().trim()).apply()
@@ -99,6 +99,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun setupSpeechRecognizer() {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            statusText.text = "Speech recognition not available on this device"
+            return
+        }
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         speechRecognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
@@ -135,12 +139,34 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             showApiKeyDialog()
             return
         }
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            Toast.makeText(this, "Microphone permission needed - grant it and try again", Toast.LENGTH_LONG).show()
+            requestNeededPermissions()
+            return
+        }
+
+        if (!::speechRecognizer.isInitialized) {
+            setupSpeechRecognizer()
+            if (!::speechRecognizer.isInitialized) {
+                Toast.makeText(this, "Speech recognizer unavailable", Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
+
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.US)
         }
-        speechRecognizer.startListening(intent)
-        pulseMic()
+
+        try {
+            speechRecognizer.startListening(intent)
+            pulseMic()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Couldn't start listening: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun handleCommand(text: String) {
@@ -155,7 +181,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     return@runOnUiThread
                 }
 
-                val actionResult = actionExecutor.execute(decision)
+                val actionResult = try {
+                    actionExecutor.execute(decision)
+                } catch (e: Exception) {
+                    "Couldn't complete that action: ${e.message}"
+                }
                 val spoken = decision.reply
                 appendLog("Jarvis: $spoken")
                 if (decision.action != "answer") {
@@ -185,7 +215,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     override fun onDestroy() {
-        speechRecognizer.destroy()
+        if (::speechRecognizer.isInitialized) {
+            speechRecognizer.destroy()
+        }
         tts.shutdown()
         super.onDestroy()
     }
