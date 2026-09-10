@@ -38,23 +38,24 @@ class ClaudeApiClient(private val apiKey: String) {
     """.trimIndent()
 
     fun sendMessage(userText: String, onResult: (JarvisDecision?) -> Unit) {
-        val messages = JSONArray()
-        messages.put(JSONObject().apply {
-            put("role", "user")
-            put("content", userText)
-        })
+        val parts = JSONArray()
+        parts.put(JSONObject().apply { put("text", userText) })
+
+        val contents = JSONArray()
+        contents.put(JSONObject().apply { put("parts", parts) })
+
+        val systemParts = JSONArray()
+        systemParts.put(JSONObject().apply { put("text", systemPrompt) })
 
         val body = JSONObject().apply {
-            put("model", "claude-sonnet-4-5")
-            put("max_tokens", 300)
-            put("system", systemPrompt)
-            put("messages", messages)
+            put("contents", contents)
+            put("systemInstruction", JSONObject().apply { put("parts", systemParts) })
         }
 
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey"
+
         val request = Request.Builder()
-            .url("https://api.anthropic.com/v1/messages")
-            .addHeader("x-api-key", apiKey)
-            .addHeader("anthropic-version", "2023-06-01")
+            .url(url)
             .addHeader("content-type", "application/json")
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
@@ -68,8 +69,13 @@ class ClaudeApiClient(private val apiKey: String) {
                 try {
                     val raw = response.body?.string() ?: return onResult(null)
                     val json = JSONObject(raw)
-                    val contentArray = json.getJSONArray("content")
-                    val text = contentArray.getJSONObject(0).getString("text").trim()
+                    val candidates = json.getJSONArray("candidates")
+                    val text = candidates.getJSONObject(0)
+                        .getJSONObject("content")
+                        .getJSONArray("parts")
+                        .getJSONObject(0)
+                        .getString("text")
+                        .trim()
 
                     val cleaned = text.removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
                     val decisionJson = JSONObject(cleaned)
