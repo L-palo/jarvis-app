@@ -43,6 +43,21 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            runOnUiThread {
+                try {
+                    AlertDialog.Builder(this)
+                        .setTitle("Jarvis crashed")
+                        .setMessage(throwable.stackTraceToString().take(1500))
+                        .setPositiveButton("OK", null)
+                        .show()
+                } catch (e: Exception) {
+                    // if even this fails, do nothing
+                }
+            }
+        }
+
         setContentView(R.layout.activity_main)
 
         micButton = findViewById(R.id.micButton)
