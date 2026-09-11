@@ -31,11 +31,17 @@
             app:tint="#A855F7" />
     </LinearLayout>
 
+    <WebView
+        android:id="@+id/coreWebView"
+        android:layout_width="match_parent"
+        android:layout_height="240dp"
+        android:layout_marginTop="8dp" />
+
     <Button
         android:id="@+id/handsFreeButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="4dp"
         android:text="Enable Hands-Free (Hey Jarvis)"
         android:backgroundTint="#3A1F5C"
         android:textColor="#FFFFFF" />
