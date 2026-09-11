@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -11,6 +12,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.view.animation.ScaleAnimation
+import android.webkit.WebView
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -30,6 +32,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var logText: TextView
     private lateinit var logScroll: ScrollView
     private lateinit var settingsButton: ImageButton
+    private lateinit var coreWebView: WebView
 
     private lateinit var speechRecognizer: SpeechRecognizer
     private lateinit var tts: TextToSpeech
@@ -68,6 +71,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         logText = findViewById(R.id.logText)
         logScroll = findViewById(R.id.logScroll)
         settingsButton = findViewById(R.id.settingsButton)
+        coreWebView = findViewById(R.id.coreWebView)
+
+        coreWebView.settings.javaScriptEnabled = true
+        coreWebView.setBackgroundColor(Color.TRANSPARENT)
+        coreWebView.loadUrl("file:///android_asset/jarvis_core.html")
 
         actionExecutor = ActionExecutor(this)
         tts = TextToSpeech(this, this)
