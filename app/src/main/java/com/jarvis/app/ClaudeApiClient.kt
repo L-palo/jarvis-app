@@ -52,7 +52,7 @@ class ClaudeApiClient(private val apiKey: String) {
             put("systemInstruction", JSONObject().apply { put("parts", systemParts) })
         }
 
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey"
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$apiKey"
 
         val request = Request.Builder()
             .url(url)
