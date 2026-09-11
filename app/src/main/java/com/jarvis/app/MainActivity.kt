@@ -4,12 +4,14 @@ import android.Manifest
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.view.animation.ScaleAnimation
+import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ScrollView
@@ -22,7 +24,8 @@ import java.util.Locale
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
-    private lateinit var micButton: android.widget.Button
+    private lateinit var micButton: Button
+    private lateinit var handsFreeButton: Button
     private lateinit var statusText: TextView
     private lateinit var logText: TextView
     private lateinit var logScroll: ScrollView
@@ -53,7 +56,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         .setPositiveButton("OK", null)
                         .show()
                 } catch (e: Exception) {
-                    // if even this fails, do nothing
                 }
             }
         }
@@ -61,6 +63,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         setContentView(R.layout.activity_main)
 
         micButton = findViewById(R.id.micButton)
+        handsFreeButton = findViewById(R.id.handsFreeButton)
         statusText = findViewById(R.id.statusText)
         logText = findViewById(R.id.logText)
         logScroll = findViewById(R.id.logScroll)
@@ -71,13 +74,73 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         requestNeededPermissions()
         setupSpeechRecognizer()
+        updateHandsFreeButtonLabel()
 
         micButton.setOnClickListener { onMicTapped() }
         settingsButton.setOnClickListener { showApiKeyDialog() }
+        handsFreeButton.setOnClickListener { toggleHandsFree() }
 
         if (getApiKey().isEmpty()) {
             showApiKeyDialog()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateHandsFreeButtonLabel()
+    }
+
+    private fun isServiceRunning(): Boolean {
+        return prefs.getBoolean("hands_free_on", false)
+    }
+
+    private fun updateHandsFreeButtonLabel() {
+        handsFreeButton.text = if (isServiceRunning()) {
+            "Disable Hands-Free (running)"
+        } else {
+            "Enable Hands-Free (Hey Jarvis)"
+        }
+    }
+
+    private fun toggleHandsFree() {
+        if (getApiKey().isEmpty()) {
+            showApiKeyDialog()
+            return
+        }
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            Toast.makeText(this, "Microphone permission needed first", Toast.LENGTH_LONG).show()
+            requestNeededPermissions()
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 200
+                )
+            }
+        }
+
+        val serviceIntent = Intent(this, JarvisListenerService::class.java)
+        if (isServiceRunning()) {
+            stopService(serviceIntent)
+            prefs.edit().putBoolean("hands_free_on", false).apply()
+            Toast.makeText(this, "Hands-free mode off", Toast.LENGTH_SHORT).show()
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            prefs.edit().putBoolean("hands_free_on", true).apply()
+            Toast.makeText(this, "Hands-free mode on - say \"Jarvis\"", Toast.LENGTH_SHORT).show()
+        }
+        updateHandsFreeButtonLabel()
     }
 
     override fun onInit(status: Int) {
