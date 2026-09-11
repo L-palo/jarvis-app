@@ -62,12 +62,30 @@ class ClaudeApiClient(private val apiKey: String) {
 
         client.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                onResult(null)
+                onResult(
+                    JarvisDecision(
+                        action = "answer",
+                        target = "",
+                        message = "",
+                        reply = "Network error: ${e.message}"
+                    )
+                )
             }
 
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                val raw = response.body?.string() ?: ""
+                if (!response.isSuccessful) {
+                    onResult(
+                        JarvisDecision(
+                            action = "answer",
+                            target = "",
+                            message = "",
+                            reply = "API error ${response.code}: ${raw.take(300)}"
+                        )
+                    )
+                    return
+                }
                 try {
-                    val raw = response.body?.string() ?: return onResult(null)
                     val json = JSONObject(raw)
                     val candidates = json.getJSONArray("candidates")
                     val text = candidates.getJSONObject(0)
@@ -89,7 +107,14 @@ class ClaudeApiClient(private val apiKey: String) {
                         )
                     )
                 } catch (e: Exception) {
-                    onResult(null)
+                    onResult(
+                        JarvisDecision(
+                            action = "answer",
+                            target = "",
+                            message = "",
+                            reply = "Parse error: ${e.message} | raw: ${raw.take(300)}"
+                        )
+                    )
                 }
             }
         })
